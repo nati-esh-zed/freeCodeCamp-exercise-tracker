@@ -1,14 +1,31 @@
 
 @host=http://localhost:3000
+@id=66b682ec8eb3e87b203d3095
 
 ###
 GET {{host}}/ HTTP/1.1
 
-###
-POST {{host}}/api/shorturl HTTP/1.1
+### reset
+GET {{host}}/api/reset HTTP/1.1
+
+### get users
+GET {{host}}/api/users HTTP/1.1
+
+### add user
+POST {{host}}/api/users HTTP/1.1
 Content-Type: application/x-www-form-urlencoded
 
-url=https://github.com/nati-esh-zed/freeCodeCamp-url-shortener
+username=nati
 
-###
-GET {{host}}/api/shorturl/20511 HTTP/1.1
+### add user exercise
+POST {{host}}/api/users/{{id}}/exercises HTTP/1.1
+Content-Type: application/json
+
+{
+    "description": "jumping jacks",
+    "duration": 3,
+    "date": "Fri Aug 09 2024"
+}
+
+### get user logs
+GET {{host}}/api/users/{{id}}/logs HTTP/1.1
