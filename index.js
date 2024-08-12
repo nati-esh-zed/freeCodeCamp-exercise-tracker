@@ -6,9 +6,9 @@ const bodyParser = require('body-parser');
 const { connectDb } = require("./db");
 const { user, exercise, log } = require("./db/models");
 
-// const { default: mongoose } = require('mongoose');
-// const model = mongoose.model("", null);
-// model.findById("")
+const { default: mongoose } = require('mongoose');
+const model = mongoose.model("", null);
+model.find()
 
 const app = express();
 
@@ -38,11 +38,9 @@ app.post("/api/users", (req, res) => {
 
 app.post("/api/users/:_id/exercises", (req, res) => {
   const _id = req.params._id;
-  const {
-    description,
-    duration,
-    date
-  } = req.body;
+  const description = req.body.description || '';
+  const duration = req.body.duration || 1;
+  const date = req.body.date || new Date.toDateString();
   log.model.findById(_id)
     .then((logDoc) => {
       const { _id, username } = logDoc;
