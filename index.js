@@ -3,110 +3,117 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
-const { connectDb } = require("./db");
-const { user, exercise, log } = require("./db/models");
-
-const { default: mongoose } = require('mongoose');
-const model = mongoose.model("", null);
-model.find()
+const mongoose = require('mongoose');
+const { ObjectId } = mongoose.Types;
 
 const app = express();
-
-connectDb();
 
 app.use(cors({ optionsSuccessStatus: 200 })); // some legacy browsers choke on 204
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log("connected to database"))
+  .catch(console.error);
+
+const options = {};
+
+const exerciseSchema = new mongoose.Schema({
+  userId: { type: ObjectId, required: true },
+  description: { type: String, required: true },
+  duration: { type: Number, required: true },
+  _date: { type: Date, default: () => new Date() }
+}, options);
+
+exerciseSchema.virtual("date")
+  .get(() => this._date.toDateString())
+  .set((date) => this._date = new Date(date))
+
+const Exercise = mongoose.model("Exercise", exerciseSchema);
+
+const userSchema = new mongoose.Schema({
+  username: { type: String, required: true },
+  exercises: [exerciseSchema]
+}, options);
+
+const User = mongoose.model("User", userSchema);
+
+app.post("/api/reset", (req, res) => {
+  Exercise.deleteMany();
+  User.deleteMany();
+  return res.sendStatus(200);
+});
+
 app.post("/api/users", (req, res) => {
   const username = req.body.username;
-  const newUser = new user.model({ username });
+  const newUser = new User({ username });
   newUser.save()
-    .then(userDoc => {
-      const _id = userDoc._id;
-      const newLog = new log.model({
-        username,
-        count: 0,
-        _id,
-        log: []
-      });
-      newLog.save();
-      return res.json(userDoc);
-    })
-    .catch(error => res.status(500).json({ error: error.message }));
+    .then(userDoc => res.json({
+      username: userDoc.username,
+      _id: userDoc._id
+    }))
+    .catch(error => res.json({ error: error.message }));
+});
+
+app.get("/api/users", (req, res) => {
+  User.find()
+    .then(usersDoc => res.json(usersDoc.map(userDoc => ({
+      username: userDoc.username,
+      _id: userDoc._id,
+    }))))
+    .catch(error => res.json({ error: error.message }));
 });
 
 app.post("/api/users/:_id/exercises", (req, res) => {
   const _id = req.params._id;
-  const description = req.body.description || '';
-  const duration = req.body.duration || 1;
-  const date = req.body.date || new Date.toDateString();
-  log.model.findById(_id)
-    .then((logDoc) => {
-      const { _id, username } = logDoc;
-      const newExercise = new exercise.model({
-        _id, username, description, duration, date
-      });
-      // newExercise.save();
-      logDoc.log.push(newExercise);
-      logDoc.count++;
-      logDoc.save();
-      return res.json({ _id, username, description, duration, date });
+  const description = req.body.description;
+  const duration = req.body.duration;
+  const date = req.body.date ? new Date(req.body.date) : new Date();
+  const exercise = new Exercise({
+    userId: _id,
+    description,
+    duration,
+    date
+  });
+  exercise.save();
+  User.findById(_id)
+    .then(userDoc => {
+      userDoc.exercises.push(exercise);
+      userDoc.save()
+        .then(() => res.json({
+          username: userDoc.username,
+          description: exercise.description,
+          duration: exercise.duration,
+          date: exercise.date,
+          _id: userDoc._id
+        }))
+        .catch(error => res.json({ error: error.message }));
     })
-    .catch(error => res.status(500).json({ error: error.message }));
+    .catch(error => res.json({ error: error.message }));
+  // return res.json({ _id, username, description, duration, date });
 });
 
 app.get("/api/users/:_id/logs", (req, res) => {
   const _id = req.params._id;
   const { from, to, limit } = req.query;
-  log.model.findById(_id)
-    .then(logDoc => {
-      const counter = limit;
-      const exerciseDocs = [];
-      for (let exerciseDoc of logDoc.log) {
-        if (from && to && limit) {
-          if (counter-- > 0
-            && new Date(exerciseDoc.date).getTime() >= new Date(from).getTime()
-            && new Date(exerciseDoc.date).getTime() <= new Date(to).getTime())
-            exerciseDocs.push(exerciseDoc);
-        } else if (from && to) {
-          if (new Date(exerciseDoc.date).getTime() >= new Date(from).getTime()
-            && new Date(exerciseDoc.date).getTime() <= new Date(to).getTime())
-            exerciseDocs.push(exerciseDoc);
-        } else if (from) {
-          if (new Date(exerciseDoc.date).getTime() >= new Date(from).getTime())
-            exerciseDocs.push(exerciseDoc);
-        } else
-          exerciseDocs.push(exerciseDoc);
-      }
-      // for (exerciseDoc of exerciseDocs)
-      //   exerciseDoc.date = new Date(exerciseDoc.date).toDateString();
-      if (from || to || limit)
-        logDoc.log = exerciseDocs;
-      logDoc.log = logDoc.log.map(exerciseDoc => ({
-        description: exerciseDoc.description,
-        duration: exerciseDoc.duration,
-        date: new Date(exerciseDoc.date).toDateString()
-      }));
-      return res.json(logDoc);
+  User.findById(_id)
+    .select({
+      username: 1,
+      _id: 1,
+      exercises: 1
     })
-    .catch(error => res.status(500).json({ error: error.message }));
-});
-
-
-app.get("/api/users", (req, res) => {
-  user.model.find({})
-    .then(userDocs => res.json(userDocs))
-    .catch(error => res.status(500).json({ error: error.message }));
-});
-
-app.get("/api/reset", (req, res) => {
-  log.model.deleteMany({})
-    .catch(error => res.status(500).json({ error: error.message }));
-  exercise.model.deleteMany({})
-    .catch(error => res.status(500).json({ error: error.message }));
-  user.model.deleteMany({}).then(() => res.sendStatus(200))
-    .catch(error => res.status(500).json({ error: error.message }));
+    .exec()
+    .then(log => res.json({
+      username: log.username,
+      count: log.exercises.length,
+      _id: log._id,
+      log: log.exercises.map(exercise => ({
+        description: exercise.description,
+        duration: exercise.duration,
+        date: exercise.date
+      }))
+    }))
+    .catch(error => res.json({ error: error.message }));
 });
 
 app.get('/', function (req, res) {

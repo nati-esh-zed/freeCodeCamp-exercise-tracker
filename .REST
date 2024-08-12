@@ -1,12 +1,12 @@
 
 @host=http://localhost:3000
-@id=66b682ec8eb3e87b203d3095
+@id=66b9bdf247a5cb123d2ea394
 
 ###
 GET {{host}}/ HTTP/1.1
 
 ### reset
-GET {{host}}/api/reset HTTP/1.1
+POST {{host}}/api/reset HTTP/1.1
 
 ### get users
 GET {{host}}/api/users HTTP/1.1
@@ -22,6 +22,7 @@ POST {{host}}/api/users/{{id}}/exercises HTTP/1.1
 Content-Type: application/json
 
 {
+    "_id": "{{id}}",
     "description": "jumping jacks",
     "duration": 3,
     "date": "Fri Aug 09 2024"
