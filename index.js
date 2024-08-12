@@ -4,7 +4,6 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
-const { ObjectId } = mongoose.Types;
 
 const app = express();
 
@@ -19,15 +18,10 @@ mongoose.connect(process.env.MONGO_URI)
 const options = {};
 
 const exerciseSchema = new mongoose.Schema({
-  userId: { type: ObjectId, required: true },
   description: { type: String, required: true },
   duration: { type: Number, required: true },
-  _date: { type: Date, default: () => new Date() }
+  date: { type: Date, required: true }
 }, options);
-
-exerciseSchema.virtual("date")
-  .get(() => this._date.toDateString())
-  .set((date) => this._date = new Date(date))
 
 const Exercise = mongoose.model("Exercise", exerciseSchema);
 
@@ -70,12 +64,11 @@ app.post("/api/users/:_id/exercises", (req, res) => {
   const duration = req.body.duration;
   const date = req.body.date ? new Date(req.body.date) : new Date();
   const exercise = new Exercise({
-    userId: _id,
     description,
     duration,
     date
   });
-  exercise.save();
+  // exercise.save();
   User.findById(_id)
     .then(userDoc => {
       userDoc.exercises.push(exercise);
@@ -84,18 +77,29 @@ app.post("/api/users/:_id/exercises", (req, res) => {
           username: userDoc.username,
           description: exercise.description,
           duration: exercise.duration,
-          date: exercise.date,
+          date: exercise.date.toDateString(),
           _id: userDoc._id
         }))
         .catch(error => res.json({ error: error.message }));
     })
     .catch(error => res.json({ error: error.message }));
-  // return res.json({ _id, username, description, duration, date });
 });
 
 app.get("/api/users/:_id/logs", (req, res) => {
   const _id = req.params._id;
-  const { from, to, limit } = req.query;
+  const from = req.query.from
+    ? new Date(req.query.from)
+    : null;
+  const to = req.query.to
+    ? new Date(req.query.to)
+    : null;
+  const limit = req.query.limit
+    ? Number(req.query.limit)
+    : null;
+  console.log({
+    from, to, limit
+  });
+  let counter = limit;
   User.findById(_id)
     .select({
       username: 1,
@@ -103,16 +107,32 @@ app.get("/api/users/:_id/logs", (req, res) => {
       exercises: 1
     })
     .exec()
-    .then(log => res.json({
-      username: log.username,
-      count: log.exercises.length,
-      _id: log._id,
-      log: log.exercises.map(exercise => ({
-        description: exercise.description,
-        duration: exercise.duration,
-        date: exercise.date
-      }))
-    }))
+    .then(log => {
+      const exercises = (from || to || limit)
+        ? log.exercises.filter(exercise => {
+          if (from && to && limit)
+            return counter-- > 0
+              && exercise.date.getTime() >= from.getTime()
+              && exercise.date.getTime() <= to.getTime();
+          else if (from && to)
+            return exercise.date.getTime() >= from.getTime()
+              && exercise.date.getTime() <= to.getTime();
+          else if (from)
+            return exercise.date.getTime() >= from.getTime();
+          return true;
+        })
+        : log.exercises;
+      return res.json({
+        username: log.username,
+        count: log.exercises.length,
+        _id: log._id,
+        log: exercises.map(exercise => ({
+          description: exercise.description,
+          duration: exercise.duration,
+          date: exercise.date.toDateString()
+        }))
+      });
+    })
     .catch(error => res.json({ error: error.message }));
 });
 
