@@ -96,9 +96,6 @@ app.get("/api/users/:_id/logs", (req, res) => {
   const limit = req.query.limit
     ? Number(req.query.limit)
     : null;
-  console.log({
-    from, to, limit
-  });
   let counter = limit;
   User.findById(_id)
     .select({
@@ -113,10 +110,10 @@ app.get("/api/users/:_id/logs", (req, res) => {
           if (from && to && limit)
             return counter-- > 0
               && exercise.date.getTime() >= from.getTime()
-              && exercise.date.getTime() <= to.getTime();
+              && exercise.date.getTime() < to.getTime();
           else if (from && to)
             return exercise.date.getTime() >= from.getTime()
-              && exercise.date.getTime() <= to.getTime();
+              && exercise.date.getTime() < to.getTime();
           else if (from)
             return exercise.date.getTime() >= from.getTime();
           return true;
