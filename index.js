@@ -100,7 +100,6 @@ app.get("/api/users/:_id/logs", (req, res) => {
   const extras = {};
   if (from) extras.from = from.toDateString();
   if (to) extras.to = to.toDateString();
-  // if (limit) extras.limit = limit;
   User.findById(_id)
     .select({
       username: 1,
@@ -121,6 +120,8 @@ app.get("/api/users/:_id/logs", (req, res) => {
               && exercise.date.getTime() <= to.getTime();
           else if (from)
             return exercise.date.getTime() >= from.getTime();
+          else if (limit)
+            return counter-- > 0;
           return true;
         })
         : sortedExercises;
