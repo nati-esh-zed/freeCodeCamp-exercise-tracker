@@ -98,6 +98,9 @@ app.get("/api/users/:_id/logs", (req, res) => {
     : null;
   let counter = limit;
   const extras = {};
+  if (from) extras.from = from.toDateString();
+  if (to) extras.to = to.toDateString();
+  // if (limit) extras.limit = limit;
   User.findById(_id)
     .select({
       username: 1,
@@ -106,29 +109,21 @@ app.get("/api/users/:_id/logs", (req, res) => {
     })
     .exec()
     .then(log => {
+      const sortedExercises = log.exercises.sort((a, b) => b.date.getTime() - a.date.getTime());
       const exercises = (from || to || limit)
-        ? log.exercises.filter(exercise => {
-          if (from && to && limit) {
-            extras.from = from.toDateString();
-            extras.to = to.toDateString();
-            extras.limit = '' + limit;
+        ? sortedExercises.filter(exercise => {
+          if (from && to && limit)
             return counter-- > 0
               && exercise.date.getTime() >= from.getTime()
               && exercise.date.getTime() <= to.getTime();
-          }
-          else if (from && to) {
-            extras.from = from.toDateString();
-            extras.to = to.toDateString();
+          else if (from && to)
             return exercise.date.getTime() >= from.getTime()
               && exercise.date.getTime() <= to.getTime();
-          }
-          else if (from) {
-            extras.from = from.toDateString();
+          else if (from)
             return exercise.date.getTime() >= from.getTime();
-          }
           return true;
         })
-        : log.exercises;
+        : sortedExercises;
       return res.json({
         username: log.username,
         ...extras,
