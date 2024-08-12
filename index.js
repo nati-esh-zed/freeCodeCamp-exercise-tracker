@@ -97,6 +97,7 @@ app.get("/api/users/:_id/logs", (req, res) => {
     ? Number(req.query.limit)
     : null;
   let counter = limit;
+  const extras = {};
   User.findById(_id)
     .select({
       username: 1,
@@ -107,21 +108,31 @@ app.get("/api/users/:_id/logs", (req, res) => {
     .then(log => {
       const exercises = (from || to || limit)
         ? log.exercises.filter(exercise => {
-          if (from && to && limit)
+          if (from && to && limit) {
+            extras.from = from.toDateString();
+            extras.to = to.toDateString();
+            extras.limit = '' + limit;
             return counter-- > 0
               && exercise.date.getTime() >= from.getTime()
-              && exercise.date.getTime() < to.getTime();
-          else if (from && to)
+              && exercise.date.getTime() <= to.getTime();
+          }
+          else if (from && to) {
+            extras.from = from.toDateString();
+            extras.to = to.toDateString();
             return exercise.date.getTime() >= from.getTime()
-              && exercise.date.getTime() < to.getTime();
-          else if (from)
+              && exercise.date.getTime() <= to.getTime();
+          }
+          else if (from) {
+            extras.from = from.toDateString();
             return exercise.date.getTime() >= from.getTime();
+          }
           return true;
         })
         : log.exercises;
       return res.json({
         username: log.username,
-        count: log.exercises.length,
+        ...extras,
+        count: exercises.length,
         _id: log._id,
         log: exercises.map(exercise => ({
           description: exercise.description,
