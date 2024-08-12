@@ -74,7 +74,7 @@ app.post("/api/users/:_id/exercises", (req, res) => {
             username: userDoc.username,
             description: exerciseDoc.description,
             duration: exerciseDoc.duration,
-            date: exerciseDoc.date,
+            date: exerciseDoc.date.toDateString(),
           });
         })
         .catch(error => res.json({ error: error.message }));

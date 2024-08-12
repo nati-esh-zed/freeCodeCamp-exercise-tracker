@@ -1,6 +1,6 @@
 
 @host=http://localhost:3000
-@id=66b9cab9b68e298b41a9b0fe
+@id=66ba18eca378e414b08f56ad
 
 ###
 GET {{host}}/ HTTP/1.1
@@ -52,6 +52,9 @@ Content-Type: application/json
 
 ### get user logs
 GET {{host}}/api/users/{{id}}/logs HTTP/1.1
+
+### get user logs limit
+GET {{host}}/api/users/{{id}}/logs?limit=2 HTTP/1.1
 
 ### get user logs from
 GET {{host}}/api/users/{{id}}/logs?from=2024-8-9 HTTP/1.1
